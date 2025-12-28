@@ -11,10 +11,13 @@ import kotlin.math.abs
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -22,142 +25,94 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 // Account导入已移除，PlatformCard不再直接使用Account类型
+// 颜色类型，用于将背景色统一调整为白色
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import androidx.fragment.app.FragmentActivity
+import android.widget.Toast
+import com.example.vault.showBiometricPrompt
 
 
 
-/**
- * 平台卡片组件 - 用于展示平台标题容器
- * @param platformName 平台名称
- * @param accountCount 账号数量
- * @param modifier 修饰符
- */
-@Composable
-fun PlatformCard(
-    platformName: String,
-    accountCount: Int = 0,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 6.dp
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            // 平台名称标题
-            Text(
-                text = "$platformName (${accountCount}个账号)",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-
-            // 账号信息卡片列表
-            // InfoCard组件已移除，需要在主界面中单独添加
-        }
-    }
-}
 
 /**
- * 信息卡片组件，用于展示账号密码信息
- * @param platformName 平台名称
+ * 信息卡片小组件，用于展示主要账号密码信息
  * @param password 密码
  * @param account 登录账号（可选）
  * @param remark 备注（可选）
- * @param onDelete 删除当前卡片的回调函数（可选）
- * @param onSwipeLeft 向左滑动回调函数（可选）
- * @param onSwipeRight 向右滑动回调函数（可选）
  * @param modifier 修饰符
  */
 @Composable
 fun InfoCard(
-    platformName: String,
     password: String,
     account: String? = null,
     remark: String? = null,
-    onDelete: (() -> Unit)? = null,
-    onSwipeLeft: (() -> Unit)? = null,
-    onSwipeRight: (() -> Unit)? = null,
+    onMoreClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var isPasswordVisible by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    // 轻按振动反馈句柄
+    val haptic = LocalHapticFeedback.current
     
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragEnd = {
-                        // 滑动结束时的处理逻辑
-                    }
-                ) { change, dragAmount ->
-                    // 检测水平滑动
-                    val horizontalDrag = dragAmount.x
-                    val threshold = 100f // 滑动阈值
-                    
-                    if (abs(horizontalDrag) > threshold) {
-                        if (horizontalDrag > 0) {
-                            // 向右滑动
-                            onSwipeRight?.invoke()
-                        } else {
-                            // 向左滑动 - 删除当前InfoCard
-                            onDelete?.invoke()
-                            onSwipeLeft?.invoke()
-                        }
-                    }
-                }
-            },
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            // 将卡片背景色统一改为白色
+            containerColor = Color.White
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 4.dp
         )
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 3.dp)
+                .padding(top = 4.dp, start = 16.dp, bottom = 4.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // 备注信息（如果有）
-            if (!remark.isNullOrBlank()) {
-                InfoRow(
-                    label = "备注",
-                    value = remark,
-
-                    onCopy = { /* 备注一般不需要复制功能 */ }
+            Column(modifier = Modifier.weight(1f)) {
+                if (!remark.isNullOrBlank()) {
+                    InfoRow(
+                        label = "备注",
+                        value = remark
+                    )
+                }
+                if (!account.isNullOrBlank()) {
+                    InfoRow(
+                        label = "账号",
+                        value = account,
+                        onCopy = { ClipboardUtils.copyToClipboard(context, account, "账号") }
+                    )
+                }
+                PasswordRow(
+                    value = password,
+                    isVisible = isPasswordVisible,
+                    onVisibilityToggle = { isPasswordVisible = !isPasswordVisible },
+                    onCopy = { ClipboardUtils.copyToClipboard(context, password, "密码") }
                 )
             }
-            
-            // 登录账号信息（如果有）
-            if (!account.isNullOrBlank()) {
-                InfoRow(
-                    label = "账号",
-                    value = account,
-                    onCopy = { ClipboardUtils.copyToClipboard(context, account, "账号") }
-                )
+            IconButton(onClick = { 
+                // 点击更多按钮先触发轻按振动反馈，提升交互手感
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                // 点击更多按钮进行二次确认（生物识别），通过后再执行更多操作
+                val activity = context as? FragmentActivity
+                if (activity == null) {
+                    // 兜底：当前环境非 FragmentActivity，不支持生物识别确认
+                    Toast.makeText(context, "当前环境不支持生物识别确认", Toast.LENGTH_SHORT).show()
+                } else {
+                    activity.showBiometricPrompt { success ->
+                        if (success) {
+                            onMoreClick?.invoke()
+                        } else {
+                            Toast.makeText(context, "验证失败或已取消", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }) {
+                Icon(imageVector = Icons.Filled.ExpandMore, contentDescription = "更多")
             }
-
-            // 密码信息
-            PasswordRow(
-                value = password,
-                isVisible = isPasswordVisible,
-                onVisibilityToggle = { isPasswordVisible = !isPasswordVisible },
-                onCopy = { ClipboardUtils.copyToClipboard(context, password, "密码") }
-            )
         }
     }
 }
@@ -171,26 +126,38 @@ fun InfoCard(
 @Composable
 private fun InfoRow(
     value: String,
-    onCopy: () -> Unit,
+    onCopy: (() -> Unit)? = null, // 改为可空函数类型 + 默认null
     label: String? = null
 ) {
+    // 轻/重按振动反馈句柄
+    val haptic = LocalHapticFeedback.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp)
+            .padding(vertical = 0.dp)
+            // 将信息行的背景色统一改为白色，保持与卡片一致
+            .background(Color.White)
     ) {
         Text(
             text = value,
             fontSize = 14.sp,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier
-                .fillMaxWidth()
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onLongPress = {
-                            onCopy()
+                // 仅当 onCopy 不为空时，才添加长按事件
+                .run {
+                    if (onCopy != null) {
+                        this.pointerInput(Unit) {
+                            detectTapGestures(
+                                onLongPress = {
+                                    // 重按振动反馈：复制触发时给予更明显的反馈
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onCopy()
+                                }
+                            )
                         }
-                    )
+                    } else {
+                        this // 无事件，返回原 Modifier
+                    }
                 }
         )
     }
@@ -210,26 +177,35 @@ private fun PasswordRow(
     onVisibilityToggle: () -> Unit,
     onCopy: () -> Unit
 ) {
+    // 轻/重按振动反馈句柄
+    val haptic = LocalHapticFeedback.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = {
-                        onVisibilityToggle()
-                    },
-                    onLongPress = {
-                        onCopy()
-                    }
-                )
-            }
+            .padding(vertical = 0.dp)
+            // 将密码行的背景色统一改为白色，保持与卡片一致
+            .background(Color.White)
+
     ) {
         Text(
             text = if (isVisible) value else "••••••••",
             fontSize = 14.sp,
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = {
+                            // 轻按振动反馈：切换密码可见性时提供轻微反馈
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onVisibilityToggle()
+                        },
+                        onLongPress = {
+                            // 重按振动反馈：复制密码时提供明显反馈
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onCopy()
+                        }
+                    )
+                }
         )
     }
 }
@@ -242,28 +218,8 @@ private fun PasswordRow(
 fun InfoCardPreview() {
     MaterialTheme {
         InfoCard(
-            platformName = "GitHub",
-            account = "user@example.com",
-            password = "mypassword123",
-            remark = "个人开发账号",
-            onDelete = { /* 删除当前账号逻辑 */ },
-            onSwipeLeft = { /* 向左滑动逻辑 */ },
-            onSwipeRight = { /* 向右滑动逻辑 */ }
+            password = "mypassword123"
         )
     }
 }
 
-/**
- * 预览组件 - PlatformCard
- */
-@Preview(showBackground = true)
-@Composable
-fun PlatformCardPreview() {
-    MaterialTheme {
-        PlatformCard(
-            platformName = "微信",
-            accountCount = 2,
-            modifier = Modifier.padding(16.dp)
-        )
-    }
-}

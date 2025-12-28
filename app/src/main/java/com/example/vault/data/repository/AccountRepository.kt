@@ -2,6 +2,7 @@ package com.example.vault.data.repository
 
 import com.example.vault.data.dao.AccountDao
 import com.example.vault.data.entity.Account
+import com.example.vault.data.entity.PlatformType
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -21,6 +22,13 @@ class AccountRepository(
     }
 
     /**
+     * 按平台ID观察账号
+     */
+    fun observeAccountsByPlatformId(platformId: Int): Flow<List<Account>> {
+        return accountDao.getAccountsByPlatformId(platformId)
+    }
+
+    /**
      * 按平台名称观察账号
      * @param platformName 平台名称
      * @return 指定平台的账号Flow列表
@@ -34,7 +42,7 @@ class AccountRepository(
      * @param platformType 平台类型
      * @return 指定平台类型的账号Flow列表
      */
-    fun observeAccountsByPlatformType(platformType: String): Flow<List<Account>> {
+    fun observeAccountsByPlatformType(platformType: PlatformType): Flow<List<Account>> {
         return accountDao.getAccountsByPlatformType(platformType)
     }
 
@@ -48,13 +56,6 @@ class AccountRepository(
         return accountDao.searchAccounts(keyword)
     }
 
-    /**
-     * 获取所有不同的平台类型
-     * @return 平台类型列表
-     */
-    fun observeAllPlatformTypes(): Flow<List<String>> {
-        return accountDao.getAllPlatformTypes()
-    }
 
     /**
      * 新增或修改账号（根据ID判断）

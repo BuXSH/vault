@@ -6,6 +6,8 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
 import com.example.vault.data.entity.Account
+import com.example.vault.data.entity.Platform
+import com.example.vault.data.entity.PlatformType
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -44,40 +46,57 @@ interface AccountDao {
     fun getAllAccounts(): Flow<List<Account>>
 
     /**
-     * 根据平台名称查询账号
-     * @param platformName 平台名称
+     * 根据平台ID查询账号
+     * @param platformId 平台ID
      * @return 指定平台的账号Flow列表
      */
-    @Query("SELECT * FROM account WHERE platformName = :platformName ORDER BY id DESC")
+    @Query("SELECT * FROM account WHERE platformId = :platformId ORDER BY id DESC")
+    fun getAccountsByPlatformId(platformId: Int): Flow<List<Account>>
+
+    /**
+     * 根据平台名称查询账号（JOIN platform）
+     * @param platformName 平台名称
+     * @return 指定平台名称的账号Flow列表
+     */
+    @Query(
+        "SELECT a.* FROM account a " +
+        "INNER JOIN platform p ON p.id = a.platformId " +
+        "WHERE p.platformName = :platformName ORDER BY a.id DESC"
+    )
     fun getAccountsByPlatformName(platformName: String): Flow<List<Account>>
 
     /**
-     * 根据平台类型查询账号
+     * 根据平台类型查询账号（JOIN platform）
      * @param platformType 平台类型
      * @return 指定平台类型的账号Flow列表
      */
-    @Query("SELECT * FROM account WHERE platformType = :platformType ORDER BY id DESC")
-    fun getAccountsByPlatformType(platformType: String): Flow<List<Account>>
-
-    /**
-     * 全文搜索账号（搜索多个字段）
-     * 搜索范围包括：platformName（平台名称）、account（账号）、remark（备注）、phone（手机号）、email（邮箱）
-     * @param keyword 搜索关键词
-     * @return 匹配的账号Flow列表
-     */
-    @Query("SELECT * FROM account WHERE platformName LIKE '%' || :keyword || '%' OR account LIKE '%' || :keyword || '%' OR remark LIKE '%' || :keyword || '%' OR phone LIKE '%' || :keyword || '%' OR email LIKE '%' || :keyword || '%' ORDER BY id DESC")
-    fun searchAccounts(keyword: String): Flow<List<Account>>
-
-    /**
-     * 获取所有不同的平台类型
-     * @return 平台类型列表
-     */
-    @Query("SELECT DISTINCT platformType FROM account WHERE platformType IS NOT NULL ORDER BY platformType ASC")
-    fun getAllPlatformTypes(): Flow<List<String>>
+    @Query(
+        "SELECT a.* FROM account a " +
+        "INNER JOIN platform p ON p.id = a.platformId " +
+        "WHERE p.platformType = :platformType ORDER BY a.id DESC"
+    )
+    fun getAccountsByPlatformType(platformType: PlatformType): Flow<List<Account>>
 
     /**
      * 删除所有账号
      */
     @Query("DELETE FROM account")
     suspend fun deleteAllAccounts()
+
+    /**
+     * 全文搜索账号（JOIN platform，搜索平台名、账号、备注、电话、邮箱）
+     * @param keyword 搜索关键词
+     * @return 匹配的账号Flow列表
+     */
+    @Query(
+        "SELECT a.* FROM account a " +
+        "INNER JOIN platform p ON p.id = a.platformId " +
+        "WHERE p.platformName LIKE '%' || :keyword || '%' " +
+        "OR a.account LIKE '%' || :keyword || '%' " +
+        "OR a.remark LIKE '%' || :keyword || '%' " +
+        "OR a.phone LIKE '%' || :keyword || '%' " +
+        "OR a.email LIKE '%' || :keyword || '%' " +
+        "ORDER BY a.id DESC"
+    )
+    fun searchAccounts(keyword: String): Flow<List<Account>>
 }

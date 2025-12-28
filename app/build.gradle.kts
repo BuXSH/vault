@@ -52,6 +52,8 @@ dependencies {
     // See Add the KSP plugin to your project
     ksp("androidx.room:room-compiler:$room_version")
 
+    // 生物识别（指纹/面部/设备凭据）依赖，用于应用启动前身份验证（使用稳定版 1.1.0）
+    implementation("androidx.biometric:biometric:1.1.0")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -60,10 +62,13 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.text)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation("androidx.compose.material:material-icons-extended:1.7.6")
+    implementation("androidx.navigation:navigation-compose:2.8.4")
+    implementation("androidx.compose.foundation:foundation")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
